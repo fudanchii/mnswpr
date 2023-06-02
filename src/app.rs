@@ -4,6 +4,8 @@ use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::spawn_local;
 use yew::prelude::*;
 
+use crate::components::CommandInputForm;
+
 #[wasm_bindgen]
 extern "C" {
     #[wasm_bindgen(js_namespace = ["window", "__TAURI__", "tauri"])]
@@ -15,10 +17,8 @@ struct GreetArgs<'a> {
     name: &'a str,
 }
 
-#[function_component(App)]
-pub fn app() -> Html {
-    let command_input_ref = use_node_ref();
-
+#[function_component(Mnswpr)]
+pub fn mnswpr() -> Html {
     let name = use_state(|| String::new());
 
     let command_msg = use_state(|| String::new());
@@ -47,16 +47,7 @@ pub fn app() -> Html {
 
     let command = {
         let name = name.clone();
-        let command_input_ref = command_input_ref.clone();
-        Callback::from(move |e: SubmitEvent| {
-            e.prevent_default();
-            name.set(
-                command_input_ref
-                    .cast::<web_sys::HtmlInputElement>()
-                    .unwrap()
-                    .value(),
-            );
-        })
+        Callback::from(move |input: String| name.set(input))
     };
 
     html! {
@@ -64,12 +55,7 @@ pub fn app() -> Html {
             <div id="game-board" class="board">
             </div>
 
-            <form id="cmd-form" class="row" onsubmit={command}>
-                <span id="cmd-container">
-                    <input id="cmd-input" ref={command_input_ref} class={classes!["nes-input"]} placeholder="Enter a command..." />
-                    <button type="submit" class={classes!["nes-btn", "is-error"]}>{"GO!"}</button>
-                </span>
-            </form>
+            <CommandInputForm {command} />
 
             <p><b>{ &*command_msg }</b></p>
         </main>

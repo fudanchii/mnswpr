@@ -1,7 +1,9 @@
+
+mod components;
 mod app;
 
-use app::App;
+use app::Mnswpr;
 
 fn main() {
-    yew::Renderer::<App>::new().render();
+    yew::Renderer::<Mnswpr>::new().render();
 }
