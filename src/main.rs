@@ -1,6 +1,5 @@
-
-mod components;
 mod app;
+mod components;
 
 use app::Mnswpr;
 
