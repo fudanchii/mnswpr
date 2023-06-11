@@ -1,44 +1,44 @@
+use web_sys::HtmlInputElement;
 use yew::prelude::*;
+use yewdux::prelude::*;
 
-#[derive(Clone, PartialEq, Properties)]
-pub struct CommandProps {
-    pub command: Callback<String>,
-}
+use crate::store::GameStore;
 
 #[function_component(CommandInputForm)]
-pub fn command_input_form(props: &CommandProps) -> Html {
+pub fn command_input_form() -> Html {
     let command_input_ref = use_node_ref();
+    let (_, dispatch) = use_store::<GameStore>();
 
     {
         let command_input_ref = command_input_ref.clone();
         use_effect(move || {
             command_input_ref
-                .cast::<web_sys::HtmlInputElement>()
+                .cast::<HtmlInputElement>()
                 .unwrap()
                 .focus()
                 .unwrap();
         });
     }
 
-    let submit_command = {
-        let command_input_ref = command_input_ref.clone();
-        let props = props.clone();
-        Callback::from(move |e: SubmitEvent| {
-            e.prevent_default();
-            let command_input = command_input_ref
-                .cast::<web_sys::HtmlInputElement>()
-                .unwrap();
-            props.command.emit(command_input.value().trim().to_string());
+    let input_command = dispatch.reduce_mut_callback_with(|store, e: KeyboardEvent| {
+        if e.key() == "Enter" {
+            let command_input: HtmlInputElement = e.target_unchecked_into();
+            store
+                .parse_command(command_input.value().trim())
+                .unwrap_or_else(|err| store.errors.push(err));
             command_input.set_value("");
-        })
-    };
+        }
+    });
 
     html! {
-        <form id="cmd-form" class="row" onsubmit={submit_command}>
+        <div id="cmd-form">
             <span id="cmd-container">
-                <input id="cmd-input" ref={command_input_ref} class={classes!["nes-input"]} placeholder="Enter a command..." />
-                <button type="submit" class={classes!["nes-btn", "is-error"]}>{"GO!"}</button>
+                <input id="cmd-input"
+                    ref={command_input_ref}
+                    class={classes!["nes-input", "is-"]}
+                    placeholder="Enter a command..."
+                    onkeypress={input_command} />
             </span>
-        </form>
+        </div>
     }
 }
