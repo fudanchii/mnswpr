@@ -4,7 +4,8 @@ use rand::Rng;
 use yewdux::prelude::*;
 
 use crate::{
-    store::{GameCommand, GameState, GameStore}, external_binding::log,
+    external_binding::log,
+    store::{GameCommand, GameState, GameStore},
 };
 
 #[derive(Debug, Default, Clone, PartialEq, Eq, Hash)]
@@ -20,7 +21,7 @@ pub enum TileState {
 pub struct GameCommandExecutor {
     pub mines_map: Vec<Vec<i8>>,
     pub board_map: Vec<Vec<TileState>>,
-    pub state: GameState,
+    state: GameState,
     state_map: HashMap<GameState, Vec<GameState>>,
 }
 
@@ -28,17 +29,20 @@ impl Listener for GameCommandExecutor {
     type Store = GameStore;
 
     fn on_change(&mut self, store: Rc<Self::Store>) {
-        let dispatch = Dispatch::<Self>::new();
-        dispatch.apply(|state: Rc<GameCommandExecutor>| -> Rc<_> {
+        Dispatch::<Self>::new().apply(|state: Rc<GameCommandExecutor>| -> Rc<_> {
             let mut slf = (*state).clone();
             log(format!("apply command {:?} {:?}", slf.state, store.cmd()).into());
             match slf.state {
-                GameState::Init => slf.init(),
+                GameState::Init => {
+                    slf.init();
+                }
                 GameState::Reinit => {
                     slf.init();
-                    slf.state = GameState::DrawBoard;
-                },
-                GameState::DrawBoard => slf.exec(store.cmd()),
+                    slf.transition_into(GameState::DrawBoard);
+                }
+                GameState::DrawBoard => {
+                    slf.exec(store.cmd());
+                }
                 _ => {}
             }
             slf.into()
@@ -75,10 +79,11 @@ impl GameCommandExecutor {
 
     fn exec(&mut self, cmd: &GameCommand) {
         match cmd {
-            GameCommand::None => {}
+            GameCommand::None | GameCommand::Sys(_) => {}
             GameCommand::Step(x, y) => self.step(*x, *y),
             GameCommand::Flag(x, y) => self.flag(*x, *y),
             GameCommand::Unflag(x, y) => self.unflag(*x, *y),
+            GameCommand::Toggle(x, y) => self.toggle_flag(*x, *y),
         }
     }
 
@@ -94,9 +99,14 @@ impl GameCommandExecutor {
                 GameState::Lose,
             ],
         );
+        states.insert(GameState::Reinit, vec![GameState::DrawBoard]);
         states.insert(GameState::Win, vec![GameState::Reinit]);
         states.insert(GameState::Lose, vec![GameState::Reinit]);
         states
+    }
+
+    pub fn current_state(&self) -> &GameState {
+        &self.state
     }
 
     pub fn transition_into(&mut self, state: GameState) {
@@ -164,9 +174,9 @@ impl GameCommandExecutor {
             (i as i8 + 1, j as i8 + 1),
         ];
         neighbours
-            .iter()
+            .into_iter()
             .filter(|(x, y)| *x >= 0 && *x < 8 && *y >= 0 && *y < 8)
-            .map(|(x, y)| (*x as usize, *y as usize))
+            .map(|(x, y)| (x as usize, y as usize))
             .collect()
     }
 
@@ -179,12 +189,13 @@ impl GameCommandExecutor {
             if self.board_map[neighbour.0][neighbour.1] != TileState::Closed {
                 continue;
             }
+
+            // if center tile is 0, then no bomb in the neighbours, safe to step
+            self.board_map[neighbour.0][neighbour.1] = TileState::Stepped;
+
+            // if current neighbour is 0, recursively open the surrounding tiles for the neighbour
             if self.mines_map[neighbour.0][neighbour.1] == 0 {
-                self.board_map[neighbour.0][neighbour.1] = TileState::Stepped;
-                return self.open(neighbour.0, neighbour.1);
-            }
-            if self.mines_map[neighbour.0][neighbour.1] < 99 {
-                self.board_map[neighbour.0][neighbour.1] = TileState::Stepped;
+                self.open(neighbour.0, neighbour.1);
             }
         }
     }
@@ -193,7 +204,9 @@ impl GameCommandExecutor {
         self.board_map[x][y] = TileState::Stepped;
         for i in 0..self.mines_map.len() {
             for j in 0..self.mines_map[i].len() {
-                if x == i && y == j { continue; }
+                if x == i && y == j {
+                    continue;
+                }
                 if self.mines_map[i][j] == 99 {
                     self.board_map[i][j] = TileState::Detonated;
                 }
@@ -203,25 +216,53 @@ impl GameCommandExecutor {
     }
 
     fn step(&mut self, x: usize, y: usize) {
-        if self.mines_map[x][y] == 99 {
-            return self.detonate(x, y);
-        }
         if self.board_map[x][y] == TileState::Closed {
+            if self.mines_map[x][y] == 99 {
+                return self.detonate(x, y);
+            }
             self.open(x, y);
         }
-        if !self.board_map
-            .iter()
-            .map(|row| row.iter().any(|cell| cell == &TileState::Closed))
-            .any(|val| val) && self.state != GameState::Lose {
+        if self.considered_win() {
             self.state = GameState::Win;
         }
     }
 
     fn flag(&mut self, x: usize, y: usize) {
-        self.board_map[x][y] = TileState::Flagged;
+        if self.board_map[x][y] == TileState::Closed {
+            self.board_map[x][y] = TileState::Flagged;
+        }
     }
 
     fn unflag(&mut self, x: usize, y: usize) {
-        self.board_map[x][y] = TileState::Closed;
+        if self.board_map[x][y] == TileState::Flagged {
+            self.board_map[x][y] = TileState::Closed;
+        }
+    }
+
+    fn toggle_flag(&mut self, x: usize, y: usize) {
+        let tile = self.board_map[x][y].clone();
+        if tile == TileState::Flagged {
+            self.board_map[x][y] = TileState::Closed;
+        } else if tile == TileState::Closed {
+            self.board_map[x][y] = TileState::Flagged;
+        }
+    }
+
+    // winning condition
+    fn considered_win(&self) -> bool {
+        self.all_closed_or_flagged_tiles_are_mines() && self.still_playing()
+    }
+
+    fn all_closed_or_flagged_tiles_are_mines(&self) -> bool {
+        self.board_map
+            .iter()
+            .enumerate()
+            .flat_map(|(i, row)| row.iter().enumerate().map(move |(j, cell)| ((i, j), cell)))
+            .filter(|(_, cell)| **cell == TileState::Closed || **cell == TileState::Flagged)
+            .all(|((i, j), _)| self.mines_map[i][j] == 99)
+    }
+
+    fn still_playing(&self) -> bool {
+        self.state != GameState::Lose
     }
 }

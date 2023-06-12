@@ -1,4 +1,3 @@
-
 use std::rc::Rc;
 
 use serde_wasm_bindgen::to_value;
@@ -11,8 +10,9 @@ use crate::external_binding::{invoke, log};
 
 #[derive(Debug, Default, Clone, PartialEq)]
 pub struct GameStore {
-    current_cmd: GameCommand,
+    pub current_cmd: GameCommand,
     pub errors: Vec<GameError>,
+    pub cmd_history: Vec<String>,
 }
 
 impl Store for GameStore {
@@ -30,19 +30,31 @@ impl Store for GameStore {
 impl GameStore {
     pub fn parse_command(&mut self, cmd: &str) -> Result<(), GameError> {
         let cmd: &str = &cmd.to_lowercase();
+        if let Some(prev_cmd) = self.cmd_history.last() {
+            if prev_cmd == cmd {
+                return Ok(());
+            }
+        }
         self.current_cmd = GameCommand::None;
         if let Some((prefix, args)) = cmd.split_once(' ') {
             self.current_cmd = (prefix, args).try_into()?;
         } else {
             match cmd {
-                "restart" => self.transition_into(GameState::Reinit),
+                "restart" => {
+                    self.transition_into(GameState::Reinit);
+                    self.cmd_history.clear();
+                }
                 "start" => self.transition_into(GameState::DrawBoard),
                 "quit" | "exit" => spawn_local(async {
                     invoke("exit", to_value(&()).unwrap()).await;
                 }),
-                _ => return Err(GameError::UnknownCommand),
+                _ => {
+                    self.cmd_history.push(cmd.to_string());
+                    return Err(GameError::UnknownCommand);
+                }
             }
         }
+        self.cmd_history.push(cmd.to_string());
         Ok(())
     }
 
@@ -75,9 +87,11 @@ pub enum GameState {
 pub enum GameCommand {
     #[default]
     None,
+    Sys(String),
     Step(usize, usize),
     Flag(usize, usize),
     Unflag(usize, usize),
+    Toggle(usize, usize),
 }
 
 impl TryFrom<(&str, &str)> for GameCommand {
@@ -89,9 +103,10 @@ impl TryFrom<(&str, &str)> for GameCommand {
         let cmd: &str = &cmd.to_lowercase();
         match cmd {
             "" => Ok(GameCommand::None),
-            "go" | "goto" | "g" | "step" | "s" | "touch" | "t" => Ok(GameCommand::Step(x, y)),
+            "go" | "goto" | "g" | "step" | "s" => Ok(GameCommand::Step(x, y)),
             "flag" | "f" | "mark" | "m" => Ok(GameCommand::Flag(x, y)),
             "unflag" | "u" | "unmark" => Ok(GameCommand::Unflag(x, y)),
+            "toggle" | "t" => Ok(GameCommand::Toggle(x, y)),
             _ => Err(GameError::UnknownCommand),
         }
     }
@@ -107,5 +122,5 @@ fn parse_coordinate(val: &str) -> Result<(usize, usize), GameError> {
         .next()
         .ok_or(GameError::InvalidArgument)
         .and_then(|num| num.to_digit(10).ok_or(GameError::InvalidArgument))?;
-    Ok((j as usize -1, i as usize -1))
+    Ok((j as usize - 1, i as usize - 1))
 }
