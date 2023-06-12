@@ -1,4 +1,5 @@
-use std::collections::HashMap;
+
+use std::rc::Rc;
 
 use serde_wasm_bindgen::to_value;
 use yew::platform::spawn_local;
@@ -6,21 +7,18 @@ use yewdux::prelude::*;
 
 use crate::errors::GameError;
 use crate::exec::GameCommandExecutor;
-use crate::external_binding::invoke;
+use crate::external_binding::{invoke, log};
 
 #[derive(Debug, Default, Clone, PartialEq)]
 pub struct GameStore {
-    current_state: GameState,
     current_cmd: GameCommand,
-    state_map: HashMap<GameState, Vec<GameState>>,
     pub errors: Vec<GameError>,
 }
 
 impl Store for GameStore {
     fn new() -> Self {
-        let mut slf = Self::default();
+        let slf = Self::default();
         init_listener(GameCommandExecutor::new());
-        slf.create_state_map();
         slf
     }
 
@@ -31,12 +29,13 @@ impl Store for GameStore {
 
 impl GameStore {
     pub fn parse_command(&mut self, cmd: &str) -> Result<(), GameError> {
+        let cmd: &str = &cmd.to_lowercase();
         self.current_cmd = GameCommand::None;
         if let Some((prefix, args)) = cmd.split_once(' ') {
             self.current_cmd = (prefix, args).try_into()?;
         } else {
             match cmd {
-                "cancel" => self.transition_into(GameState::Init),
+                "restart" => self.transition_into(GameState::Reinit),
                 "start" => self.transition_into(GameState::DrawBoard),
                 "quit" | "exit" => spawn_local(async {
                     invoke("exit", to_value(&()).unwrap()).await;
@@ -51,34 +50,14 @@ impl GameStore {
         &self.current_cmd
     }
 
-    pub fn game_state(&self) -> GameState {
-        self.current_state.clone()
-    }
-
-    pub fn transition_into(&mut self, state: GameState) {
-        if self.state_map[&self.current_state]
-            .iter()
-            .any(|x| x == &state)
-        {
-            self.current_state = state;
-        }
-    }
-
-    fn create_state_map(&mut self) {
-        let mut states: HashMap<GameState, Vec<GameState>> = HashMap::new();
-        states.insert(GameState::Init, vec![GameState::DrawBoard]);
-        states.insert(
-            GameState::DrawBoard,
-            vec![
-                GameState::Init,
-                GameState::DrawBoard,
-                GameState::Win,
-                GameState::Lose,
-            ],
-        );
-        states.insert(GameState::Win, vec![GameState::Init]);
-        states.insert(GameState::Lose, vec![GameState::Init]);
-        self.state_map = states;
+    pub fn transition_into(&self, state: GameState) {
+        let dispatch = Dispatch::<GameCommandExecutor>::new();
+        log(format!("transition  {:?}", state).into());
+        dispatch.apply(|gcx: Rc<GameCommandExecutor>| {
+            let mut gcx = (*gcx).clone();
+            gcx.transition_into(state);
+            gcx.into()
+        });
     }
 }
 
@@ -86,6 +65,7 @@ impl GameStore {
 pub enum GameState {
     #[default]
     Init,
+    Reinit,
     DrawBoard,
     Win,
     Lose,
@@ -106,6 +86,7 @@ impl TryFrom<(&str, &str)> for GameCommand {
     fn try_from(this: (&str, &str)) -> Result<Self, Self::Error> {
         let (cmd, args) = this;
         let (x, y) = parse_coordinate(args)?;
+        let cmd: &str = &cmd.to_lowercase();
         match cmd {
             "" => Ok(GameCommand::None),
             "go" | "goto" | "g" | "step" | "s" | "touch" | "t" => Ok(GameCommand::Step(x, y)),
@@ -118,13 +99,13 @@ impl TryFrom<(&str, &str)> for GameCommand {
 
 fn parse_coordinate(val: &str) -> Result<(usize, usize), GameError> {
     let mut arg = val.chars();
-    let x = arg
+    let i = arg
         .next()
         .ok_or(GameError::InvalidArgument)
         .and_then(|num| num.to_digit(10).ok_or(GameError::InvalidArgument))?;
-    let y = arg
+    let j = arg
         .next()
         .ok_or(GameError::InvalidArgument)
         .and_then(|num| num.to_digit(10).ok_or(GameError::InvalidArgument))?;
-    Ok((x as usize, y as usize))
+    Ok((j as usize -1, i as usize -1))
 }

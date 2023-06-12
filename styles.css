@@ -39,6 +39,11 @@ input, button, div.nes-container {
   width: 80vw;
 }
 
+.mines-field .mine-cell {
+  width: 52px;
+  height: 48px;
+}
+
 /* cyrillic-ext */
 @font-face {
   font-family: 'Press Start 2P';

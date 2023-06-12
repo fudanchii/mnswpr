@@ -2,7 +2,7 @@ use web_sys::HtmlInputElement;
 use yew::prelude::*;
 use yewdux::prelude::*;
 
-use crate::store::GameStore;
+use crate::{store::{GameStore}};
 
 #[function_component(CommandInputForm)]
 pub fn command_input_form() -> Html {
@@ -35,7 +35,7 @@ pub fn command_input_form() -> Html {
             <span id="cmd-container">
                 <input id="cmd-input"
                     ref={command_input_ref}
-                    class={classes!["nes-input", "is-"]}
+                    class={classes!["nes-input"]}
                     placeholder="Enter a command..."
                     onkeypress={input_command} />
             </span>

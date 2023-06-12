@@ -1,10 +1,10 @@
+use std::{collections::HashMap, rc::Rc};
+
 use rand::Rng;
-use serde_wasm_bindgen::to_value;
 use yewdux::prelude::*;
 
 use crate::{
-    external_binding::log,
-    store::{GameCommand, GameState, GameStore},
+    store::{GameCommand, GameState, GameStore}, external_binding::log,
 };
 
 #[derive(Debug, Default, Clone, PartialEq, Eq, Hash)]
@@ -20,25 +20,28 @@ pub enum TileState {
 pub struct GameCommandExecutor {
     pub mines_map: Vec<Vec<i8>>,
     pub board_map: Vec<Vec<TileState>>,
+    pub state: GameState,
+    state_map: HashMap<GameState, Vec<GameState>>,
 }
 
 impl Listener for GameCommandExecutor {
     type Store = GameStore;
 
-    fn on_change(&mut self, store: std::rc::Rc<Self::Store>) {
+    fn on_change(&mut self, store: Rc<Self::Store>) {
         let dispatch = Dispatch::<Self>::new();
-        dispatch.apply(|_state| -> std::rc::Rc<_> {
-            match store.game_state() {
-                GameState::Init => self.init(),
-                GameState::DrawBoard => match store.cmd() {
-                    GameCommand::None => {}
-                    GameCommand::Step(x, y) => self.step(*x, *y),
-                    GameCommand::Flag(x, y) => self.flag(*x, *y),
-                    GameCommand::Unflag(x, y) => self.unflag(*x, *y),
+        dispatch.apply(|state: Rc<GameCommandExecutor>| -> Rc<_> {
+            let mut slf = (*state).clone();
+            log(format!("apply command {:?} {:?}", slf.state, store.cmd()).into());
+            match slf.state {
+                GameState::Init => slf.init(),
+                GameState::Reinit => {
+                    slf.init();
+                    slf.state = GameState::DrawBoard;
                 },
+                GameState::DrawBoard => slf.exec(store.cmd()),
                 _ => {}
             }
-            self.clone().into()
+            slf.into()
         });
     }
 }
@@ -48,6 +51,8 @@ impl Store for GameCommandExecutor {
         let mut slf = Self {
             mines_map: Vec::new(),
             board_map: Vec::new(),
+            state: GameState::Init,
+            state_map: Self::create_state_map(),
         };
 
         slf.init();
@@ -67,6 +72,39 @@ impl GameCommandExecutor {
         self.create_board_map();
         self.generate_mines_map();
     }
+
+    fn exec(&mut self, cmd: &GameCommand) {
+        match cmd {
+            GameCommand::None => {}
+            GameCommand::Step(x, y) => self.step(*x, *y),
+            GameCommand::Flag(x, y) => self.flag(*x, *y),
+            GameCommand::Unflag(x, y) => self.unflag(*x, *y),
+        }
+    }
+
+    fn create_state_map() -> HashMap<GameState, Vec<GameState>> {
+        let mut states: HashMap<GameState, Vec<GameState>> = HashMap::new();
+        states.insert(GameState::Init, vec![GameState::DrawBoard]);
+        states.insert(
+            GameState::DrawBoard,
+            vec![
+                GameState::Reinit,
+                GameState::DrawBoard,
+                GameState::Win,
+                GameState::Lose,
+            ],
+        );
+        states.insert(GameState::Win, vec![GameState::Reinit]);
+        states.insert(GameState::Lose, vec![GameState::Reinit]);
+        states
+    }
+
+    pub fn transition_into(&mut self, state: GameState) {
+        if self.state_map[&self.state].iter().any(|s| s == &state) {
+            self.state = state;
+        }
+    }
+
     fn create_board_map(&mut self) {
         for i in 0..8 {
             self.board_map.push(Vec::new());
@@ -87,8 +125,14 @@ impl GameCommandExecutor {
         }
 
         for _ in 0..16 {
-            let idx: i8 = rng.gen_range(0..64);
-            self.mines_map[(idx / 8) as usize][(idx % 8) as usize] = 99;
+            loop {
+                let idx: i8 = rng.gen_range(0..64);
+                if self.mines_map[(idx / 8) as usize][(idx % 8) as usize] == 99 {
+                    continue;
+                }
+                self.mines_map[(idx / 8) as usize][(idx % 8) as usize] = 99;
+                break;
+            }
         }
 
         for i in 0..8 {
@@ -127,7 +171,6 @@ impl GameCommandExecutor {
     }
 
     fn open(&mut self, x: usize, y: usize) {
-        log(to_value(&format!("open {} {}", x, y)).unwrap());
         self.board_map[x][y] = TileState::Stepped;
         if self.mines_map[x][y] > 0 {
             return;
@@ -146,21 +189,32 @@ impl GameCommandExecutor {
         }
     }
 
-    fn detonate(&mut self) {
+    fn detonate(&mut self, x: usize, y: usize) {
+        self.board_map[x][y] = TileState::Stepped;
         for i in 0..self.mines_map.len() {
             for j in 0..self.mines_map[i].len() {
+                if x == i && y == j { continue; }
                 if self.mines_map[i][j] == 99 {
                     self.board_map[i][j] = TileState::Detonated;
                 }
             }
         }
+        self.state = GameState::Lose;
     }
 
     fn step(&mut self, x: usize, y: usize) {
         if self.mines_map[x][y] == 99 {
-            self.detonate();
+            return self.detonate(x, y);
         }
-        self.open(x, y);
+        if self.board_map[x][y] == TileState::Closed {
+            self.open(x, y);
+        }
+        if !self.board_map
+            .iter()
+            .map(|row| row.iter().any(|cell| cell == &TileState::Closed))
+            .any(|val| val) && self.state != GameState::Lose {
+            self.state = GameState::Win;
+        }
     }
 
     fn flag(&mut self, x: usize, y: usize) {
