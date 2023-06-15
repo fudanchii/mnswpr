@@ -57,17 +57,22 @@ fn draw_board() -> Html {
                 <td class={classes!["mine-cell"]}> {
                     if cell.clone() == TileState::Closed {
                         html! {
-                            <button class={btn_classes.clone()} onclick={callback.clone()} oncontextmenu={callback.clone()} data-x={(x+1).to_string()} data-y={(y+1).to_string()} >
+                            <button
+                                class={btn_classes.clone()}
+                                onclick={callback.clone()}
+                                oncontextmenu={callback.clone()}
+                                data-x={(x+1).to_string()}
+                                data-y={(y+1).to_string()} >
                             </button>
                         }
                     } else { html! {
                         <div data-x={(x+1).to_string()} data-y={(y+1).to_string()} oncontextmenu={callback.clone()} > {
                             if cell.clone() == TileState::Flagged { "🚩".to_string() }
-                            else if hq.mines_map[y][x] == 0 { "".to_string() }
                             else if cell.clone() == TileState::Detonated {
                                 "💣".to_string()
                             } else if hq.mines_map[y][x] == 99 { "💥".to_string() }
-                            else { format!("{}", hq.mines_map[y][x]) }
+                            else if hq.mines_map[y][x] == 0 { "".to_string() }
+                            else { hq.mines_map[y][x].to_string() }
                         } </div>
                     }}
                 } </td>

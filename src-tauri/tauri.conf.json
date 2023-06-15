@@ -23,11 +23,11 @@
       "targets": "all",
       "identifier": "dev.fudanchii.mnswpr",
       "icon": [
-        "icons/32x32.png",
-        "icons/128x128.png",
-        "icons/128x128@2x.png",
-        "icons/icon.icns",
-        "icons/icon.ico"
+        "icons/mnswpr.32x32.png",
+        "icons/mnswpr.128x128.png",
+        "icons/mnswpr.128x128@2x.png",
+        "icons/mnswpr.icns",
+        "icons/mnswpr.ico"
       ]
     },
     "security": {
