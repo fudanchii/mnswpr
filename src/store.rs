@@ -30,11 +30,6 @@ impl Store for GameStore {
 impl GameStore {
     pub fn parse_command(&mut self, cmd: &str) -> Result<(), GameError> {
         let cmd: &str = &cmd.to_lowercase();
-        if let Some(prev_cmd) = self.cmd_history.last() {
-            if prev_cmd == cmd {
-                return Ok(());
-            }
-        }
         self.current_cmd = GameCommand::None;
         if let Some((prefix, args)) = cmd.split_once(' ') {
             self.current_cmd = (prefix, args).try_into()?;
@@ -42,7 +37,6 @@ impl GameStore {
             match cmd {
                 "restart" => {
                     self.transition_into(GameState::Reinit);
-                    self.cmd_history.clear();
                 }
                 "start" => self.transition_into(GameState::DrawBoard),
                 "quit" | "exit" => spawn_local(async {
