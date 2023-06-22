@@ -44,6 +44,10 @@ input, button, div.nes-container {
   height: 48px;
 }
 
+.mines-row-label,.mines-column-label {
+  color: #9a9a9a;
+}
+
 /* cyrillic-ext */
 @font-face {
   font-family: 'Press Start 2P';

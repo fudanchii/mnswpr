@@ -31,13 +31,15 @@ impl GameStore {
     pub fn parse_command(&mut self, cmd: &str) -> Result<(), GameError> {
         let cmd: &str = &cmd.to_lowercase();
         self.current_cmd = GameCommand::None;
-        if let Some((prefix, args)) = cmd.split_once(' ') {
-            self.current_cmd = (prefix, args).try_into()?;
+        let cmds: Vec<char> = cmd.chars().collect();
+        if cmds.len() == 3 {
+            let mut act_cmds: [char; 3] = [' '; 3];
+            act_cmds.iter_mut().enumerate()
+                .for_each(|(i, v)| *v = cmds[i]);
+            self.current_cmd = act_cmds.try_into()?;
         } else {
             match cmd {
-                "restart" => {
-                    self.transition_into(GameState::Reinit);
-                }
+                "restart" => self.transition_into(GameState::Reinit),
                 "start" => self.transition_into(GameState::DrawBoard),
                 "quit" | "exit" => spawn_local(async {
                     invoke("exit", to_value(&()).unwrap()).await;
@@ -88,33 +90,26 @@ pub enum GameCommand {
     Toggle(usize, usize),
 }
 
-impl TryFrom<(&str, &str)> for GameCommand {
+impl TryFrom<[char; 3]> for GameCommand {
     type Error = GameError;
 
-    fn try_from(this: (&str, &str)) -> Result<Self, Self::Error> {
-        let (cmd, args) = this;
-        let (x, y) = parse_coordinate(args)?;
-        let cmd: &str = &cmd.to_lowercase();
+    fn try_from(this: [char; 3]) -> Result<Self, Self::Error> {
+        let [cmd, c1, c2] = this;
+        let i = match c1 {
+            'a'..='z' => c1 as usize - 'a' as usize,
+            '1'..='9' => c1 as usize - '1' as usize,
+            _ => return Err(GameError::InvalidArgument),
+        };
+        let j = match c2 {
+            '1'..='9' => c2 as usize - '1' as usize,
+            _ => return Err(GameError::InvalidArgument),
+        };
         match cmd {
-            "" => Ok(GameCommand::None),
-            "go" | "goto" | "g" | "step" | "s" => Ok(GameCommand::Step(x, y)),
-            "flag" | "f" | "mark" | "m" => Ok(GameCommand::Flag(x, y)),
-            "unflag" | "u" | "unmark" => Ok(GameCommand::Unflag(x, y)),
-            "toggle" | "t" => Ok(GameCommand::Toggle(x, y)),
+            's' => Ok(GameCommand::Step(j, i)),
+            'f' => Ok(GameCommand::Flag(j, i)),
+            'u' => Ok(GameCommand::Unflag(j, i)),
+            't' => Ok(GameCommand::Toggle(j, i)),
             _ => Err(GameError::UnknownCommand),
         }
     }
-}
-
-fn parse_coordinate(val: &str) -> Result<(usize, usize), GameError> {
-    let mut arg = val.chars();
-    let i = arg
-        .next()
-        .ok_or(GameError::InvalidArgument)
-        .and_then(|num| num.to_digit(10).ok_or(GameError::InvalidArgument))?;
-    let j = arg
-        .next()
-        .ok_or(GameError::InvalidArgument)
-        .and_then(|num| num.to_digit(10).ok_or(GameError::InvalidArgument))?;
-    Ok((j as usize - 1, i as usize - 1))
 }

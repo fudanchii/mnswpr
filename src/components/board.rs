@@ -24,6 +24,23 @@ pub fn game_board() -> Html {
     }
 }
 
+#[function_component(ColumnLabel)]
+fn column_label() -> Html {
+    html! {
+        <tr class={classes!["mines-column-label"]}>
+            <th class={classes!["mine-cell"]}>{""}</th>
+            <th class={classes!["mine-cell"]}>{"a"}</th>
+            <th class={classes!["mine-cell"]}>{"b"}</th>
+            <th class={classes!["mine-cell"]}>{"c"}</th>
+            <th class={classes!["mine-cell"]}>{"d"}</th>
+            <th class={classes!["mine-cell"]}>{"e"}</th>
+            <th class={classes!["mine-cell"]}>{"f"}</th>
+            <th class={classes!["mine-cell"]}>{"g"}</th>
+            <th class={classes!["mine-cell"]}>{"h"}</th>
+        </tr>
+    }
+}
+
 #[function_component(Board)]
 fn draw_board() -> Html {
     let (_, dispatch) = use_store::<GameStore>();
@@ -32,14 +49,14 @@ fn draw_board() -> Html {
     let callback = dispatch.reduce_mut_callback_with(|store, ev: MouseEvent| {
         let btn_nth = ev.button();
         let button = ev.target_unchecked_into::<HtmlElement>();
-        let cmd = if btn_nth == 0 { "step" } else { "toggle" };
+        let cmd = if btn_nth == 0 { "s" } else { "t" };
         let x = button.get_attribute("data-x").unwrap();
         let y = button.get_attribute("data-y").unwrap();
 
-        log(format!("{} {},{}", cmd, x, y).into());
+        log(format!("{}{}{}", cmd, x, y).into());
 
         store
-            .parse_command(&format!("{} {}{}", cmd, x, y))
+            .parse_command(&format!("{}{}{}", cmd, x, y))
             .unwrap_or_else(|err| store.errors.push(err));
 
         ev.prevent_default();
@@ -53,7 +70,9 @@ fn draw_board() -> Html {
 
     let items = hq.board_map.iter().enumerate().map(|(y, row)| {
         html! {
-            <tr> { for row.iter().enumerate().map(|(x, cell)| html! {
+            <tr> 
+            <td class={classes!["mines-row-label"]}>{y+1}</td>
+            { for row.iter().enumerate().map(|(x, cell)| html! {
                 <td class={classes!["mine-cell"]}> {
                     if cell.clone() == TileState::Closed {
                         html! {
@@ -83,6 +102,7 @@ fn draw_board() -> Html {
     html! {
         <div class="nes-table-responsive">
             <table class={classes!["mines-field", "nes-table", "is-bordered", "is-centered"]}>
+                <ColumnLabel />
                 <tbody>{ items.collect::<Html>() }</tbody>
            </table>
         </div>
