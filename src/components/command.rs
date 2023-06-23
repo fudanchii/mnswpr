@@ -6,6 +6,7 @@ use crate::{
     exec::GameCommandExecutor,
     external_binding::log,
     store::{GameState, GameStore},
+    components::TimerDisplay,
 };
 
 #[function_component(CommandInputForm)]
@@ -52,6 +53,7 @@ pub fn command_input_form() -> Html {
                     class={classes!["nes-input"]}
                     {placeholder}
                     onkeypress={input_command} />
+                <TimerDisplay />
             </span>
         </div>
     }

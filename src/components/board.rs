@@ -5,22 +5,44 @@ use yewdux::prelude::*;
 use crate::{
     exec::{GameCommandExecutor, TileState},
     external_binding::log,
-    store::{GameState, GameStore},
+    store::{GameState, GameStore}, components::CommandInputForm,
 };
+
+fn color(class: &str, text: &str) -> Html {
+    html! {
+        <span class={classes!["nes-text", class.to_string()]}>{text}</span>
+    }
+}
 
 #[function_component(GameBoard)]
 pub fn game_board() -> Html {
     let (gcx, _) = use_store::<GameCommandExecutor>();
 
-    log(format!("state painting {:?}", gcx.current_state()).into());
-
     match gcx.current_state() {
         GameState::Init => html! {
-            <div class={classes!["nes-container", "is-rounded", "game-announcement"]}>
-                <p>{"Let's start! You know what to do."}</p>
-            </div>
+            <>
+                <div class={classes!["nes-container", "is-rounded", "game-announcement"]}>
+                    <h2>{"Let's start!"}</h2>
+                    <ul>
+                        <li>{"Type "} {color("is-primary", "start")} {" to start playing, "}{color("is-primary", "restart")}{"/"}{color("is-primary", "reset")}{" to restart with different map."}</li>
+                        <li>{"You can use mouse or type these commands to play:"}
+                            <ul>
+                                <li>{color("is-success", "sxx")}{" to step on a tile, replace xx with the tile coordinate, column go first."}</li>
+                                <li>{color("is-success", "fxx")}{" to flag the tile, "}{color("is-success", "uxx")}{" to unflag."}</li>
+                                <li>{color("is-success", "nxx")}{" to step to all the concealed neighbors of xx, works if xx tile already stepped, you lose if one of the neighbor tile conceal a bomb."}</li>
+                            </ul>
+                        </li>
+                    </ul>
+                </div>
+                <CommandInputForm />
+            </>
         },
-        _ => html! { <Board /> },
+        _ => html! {
+            <>
+                <Board />
+                <CommandInputForm />
+            </>
+        }
     }
 }
 
@@ -74,7 +96,7 @@ fn draw_board() -> Html {
             <td class={classes!["mines-row-label"]}>{y+1}</td>
             { for row.iter().enumerate().map(|(x, cell)| html! {
                 <td class={classes!["mine-cell"]}> {
-                    if cell.clone() == TileState::Closed {
+                    if cell.clone() == TileState::Concealed {
                         html! {
                             <button
                                 class={btn_classes.clone()}
@@ -87,9 +109,8 @@ fn draw_board() -> Html {
                     } else { html! {
                         <div data-x={(x+1).to_string()} data-y={(y+1).to_string()} oncontextmenu={callback.clone()} > {
                             if cell.clone() == TileState::Flagged { "🚩".to_string() }
-                            else if cell.clone() == TileState::Detonated {
-                                "💣".to_string()
-                            } else if hq.mines_map[y][x] == 99 { "💥".to_string() }
+                            else if cell.clone() == TileState::Revealed { "💣".to_string() }
+                            else if cell.clone() == TileState::Detonated { "💥".to_string() }
                             else if hq.mines_map[y][x] == 0 { "".to_string() }
                             else { hq.mines_map[y][x].to_string() }
                         } </div>

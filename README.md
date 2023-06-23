@@ -1,7 +1,7 @@
-# Tauri + Yew
+# mnswpr
+Got 3 minutes? play mines sweeper.
 
-This template should help get you started developing with Tauri and Yew.
+# stacks
+mnswpr is written in Rust, developed with Yew, compiled into WASM, and playable in desktop with Tauri.
 
-## Recommended IDE Setup
-
-[VS Code](https://code.visualstudio.com/) + [Tauri](https://marketplace.visualstudio.com/items?itemName=tauri-apps.tauri-vscode) + [rust-analyzer](https://marketplace.visualstudio.com/items?itemName=rust-lang.rust-analyzer).
+Theme and visuals were taken from the NES.css project.

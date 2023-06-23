@@ -7,4 +7,7 @@ extern "C" {
 
     #[wasm_bindgen(js_namespace = ["window", "console"])]
     pub fn log(stuff: JsValue);
+
+    #[wasm_bindgen(js_namespace = ["window", "Date"])]
+    pub fn now() -> f64;
 }

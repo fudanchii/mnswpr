@@ -39,8 +39,12 @@ impl GameStore {
             self.current_cmd = act_cmds.try_into()?;
         } else {
             match cmd {
-                "restart" => self.transition_into(GameState::Reinit),
-                "start" => self.transition_into(GameState::DrawBoard),
+                "restart" | "reset" => self.transition_into(GameState::Reinit),
+                "start" => {
+                    if self.cmd_history.is_empty() {
+                        self.transition_into(GameState::Reinit);
+                    }
+                },
                 "quit" | "exit" => spawn_local(async {
                     invoke("exit", to_value(&()).unwrap()).await;
                 }),
@@ -83,8 +87,8 @@ pub enum GameState {
 pub enum GameCommand {
     #[default]
     None,
-    Sys(String),
     Step(usize, usize),
+    NeighboursStep(usize, usize),
     Flag(usize, usize),
     Unflag(usize, usize),
     Toggle(usize, usize),
@@ -109,6 +113,7 @@ impl TryFrom<[char; 3]> for GameCommand {
             'f' => Ok(GameCommand::Flag(j, i)),
             'u' => Ok(GameCommand::Unflag(j, i)),
             't' => Ok(GameCommand::Toggle(j, i)),
+            'n' => Ok(GameCommand::NeighboursStep(j, i)),
             _ => Err(GameError::UnknownCommand),
         }
     }
