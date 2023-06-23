@@ -12,14 +12,17 @@ use crate::{
 
 pub const TIME_LIMIT: u64 = 60 * 3;
 
-fn raf_callback(rafcell: Rc<RefCell<Option<AnimationFrame>>>, cb: Box<dyn Fn() -> bool>) {
+fn raf_callback<P>(rafcell: Rc<RefCell<Option<AnimationFrame>>>, cb: P)
+where
+    P: Fn() -> bool + 'static,
+{
     let rafcell_clone = rafcell.clone();
     if !cb() {
         *rafcell.borrow_mut() = None;
         return;
     }
      *rafcell.borrow_mut() = Some(gloo_render::request_animation_frame(move |_| {
-        raf_callback(rafcell_clone, Box::new(move || cb()));
+        raf_callback(rafcell_clone, cb);
     }));
 }
 
@@ -46,7 +49,7 @@ pub fn timer_display() -> Html {
             if gcx.current_state() == &GameState::DrawBoard {
                 if let TimerState::Started(started_at) = gcx.timer_state {
                     *raf.borrow_mut() = Some(gloo_render::request_animation_frame(move |_| {
-                        raf_callback(raf_clone, Box::new(move || {
+                        raf_callback(raf_clone, move || {
                             let delta = current_seconds().checked_sub(started_at).unwrap_or(0);
                             let elapsed = TIME_LIMIT.checked_sub(delta).unwrap_or(0);
                             if elapsed != *clock {
@@ -61,7 +64,7 @@ pub fn timer_display() -> Html {
                                 return false;
                             }
                             true
-                        }));
+                        });
                     }));
                 }
             }
