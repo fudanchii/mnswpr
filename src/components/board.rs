@@ -3,8 +3,9 @@ use yew::prelude::*;
 use yewdux::prelude::*;
 
 use crate::{
+    components::CommandInputForm,
     exec::{GameCommandExecutor, TileState},
-    store::{GameState, GameStore}, components::CommandInputForm,
+    store::{GameState, GameStore},
 };
 
 fn color(class: &str, text: &str) -> Html {
@@ -41,7 +42,7 @@ pub fn game_board() -> Html {
                 <Board />
                 <CommandInputForm />
             </>
-        }
+        },
     }
 }
 
@@ -87,7 +88,7 @@ fn draw_board() -> Html {
 
     let items = hq.board_map.iter().enumerate().map(|(y, row)| {
         html! {
-            <tr> 
+            <tr>
             <td class={classes!["mines-row-label"]}>{y+1}</td>
             { for row.iter().enumerate().map(|(x, cell)| html! {
                 <td class={classes!["mine-cell"]}> {

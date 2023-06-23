@@ -3,9 +3,9 @@ use yew::prelude::*;
 use yewdux::prelude::*;
 
 use crate::{
+    components::TimerDisplay,
     exec::GameCommandExecutor,
     store::{GameState, GameStore},
-    components::TimerDisplay,
 };
 
 #[function_component(CommandInputForm)]

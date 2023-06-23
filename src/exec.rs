@@ -4,8 +4,8 @@ use rand::Rng;
 use yewdux::prelude::*;
 
 use crate::{
-    store::{GameCommand, GameState, GameStore},
     current_seconds,
+    store::{GameCommand, GameState, GameStore},
 };
 
 const THE_BOMB: i8 = 99;

@@ -34,7 +34,9 @@ impl GameStore {
         let cmds: Vec<char> = cmd.chars().collect();
         if cmds.len() == 3 {
             let mut act_cmds: [char; 3] = [' '; 3];
-            act_cmds.iter_mut().enumerate()
+            act_cmds
+                .iter_mut()
+                .enumerate()
                 .for_each(|(i, v)| *v = cmds[i]);
             self.current_cmd = act_cmds.try_into()?;
         } else {
@@ -44,7 +46,7 @@ impl GameStore {
                     if self.cmd_history.is_empty() {
                         self.transition_into(GameState::Reinit);
                     }
-                },
+                }
                 "quit" | "exit" => spawn_local(async {
                     invoke("exit", to_value(&()).unwrap()).await;
                 }),
