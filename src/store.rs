@@ -6,7 +6,7 @@ use yewdux::prelude::*;
 
 use crate::errors::GameError;
 use crate::exec::GameCommandExecutor;
-use crate::external_binding::{invoke, log};
+use crate::external_binding::invoke;
 
 #[derive(Debug, Default, Clone, PartialEq)]
 pub struct GameStore {
@@ -64,7 +64,6 @@ impl GameStore {
 
     pub fn transition_into(&self, state: GameState) {
         let dispatch = Dispatch::<GameCommandExecutor>::new();
-        log(format!("transition  {:?}", state).into());
         dispatch.apply(|gcx: Rc<GameCommandExecutor>| {
             let mut gcx = (*gcx).clone();
             gcx.transition_into(state);

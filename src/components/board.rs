@@ -4,7 +4,6 @@ use yewdux::prelude::*;
 
 use crate::{
     exec::{GameCommandExecutor, TileState},
-    external_binding::log,
     store::{GameState, GameStore}, components::CommandInputForm,
 };
 
@@ -75,16 +74,12 @@ fn draw_board() -> Html {
         let x = button.get_attribute("data-x").unwrap();
         let y = button.get_attribute("data-y").unwrap();
 
-        log(format!("{}{}{}", cmd, x, y).into());
-
         store
             .parse_command(&format!("{}{}{}", cmd, x, y))
             .unwrap_or_else(|err| store.errors.push(err));
 
         ev.prevent_default();
     });
-
-    log(format!("board drawing {:?}", hq.current_state()).into());
 
     if *hq.current_state() == GameState::Lose || *hq.current_state() == GameState::Win {
         btn_classes.push("is-disabled");
