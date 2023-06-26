@@ -47,24 +47,22 @@ pub fn timer_display() -> Html {
             move |_| {
                 if gcx.current_state() == &GameState::DrawBoard {
                     if let TimerState::Started(started_at) = gcx.timer_state {
-                        *raf.borrow_mut() = Some(gloo_render::request_animation_frame(move |_| {
-                            raf_callback(raf_clone, move || {
-                                let delta = current_seconds().saturating_sub(started_at);
-                                let elapsed = TIME_LIMIT.saturating_sub(delta);
-                                if elapsed != *clock {
-                                    clock.set(elapsed);
-                                }
-                                if elapsed == 0 {
-                                    dispatch.apply(|cgcx: Rc<GameCommandExecutor>| {
-                                        let mut new_gcx = (*cgcx).clone();
-                                        new_gcx.timer_checkin(elapsed);
-                                        new_gcx.into()
-                                    });
-                                    return false;
-                                }
-                                true
-                            });
-                        }));
+                        raf_callback(raf_clone, move || {
+                            let delta = current_seconds().saturating_sub(started_at);
+                            let elapsed = TIME_LIMIT.saturating_sub(delta);
+                            if elapsed != *clock {
+                                clock.set(elapsed);
+                            }
+                            if elapsed == 0 {
+                                dispatch.apply(|cgcx: Rc<GameCommandExecutor>| {
+                                    let mut new_gcx = (*cgcx).clone();
+                                    new_gcx.timer_checkin(elapsed);
+                                    new_gcx.into()
+                                });
+                                return false;
+                            }
+                            true
+                        });
                     }
                 }
 
