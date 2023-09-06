@@ -30,7 +30,9 @@ pub fn timer_display() -> Html {
         let gcx_dep = gcx.clone();
         use_effect_with_deps(
             move |_| {
-                if &GameState::Init != gcx.current_state() && &GameState::Reinit != gcx.current_state()  {
+                if &GameState::Init != gcx.current_state()
+                    && &GameState::Reinit != gcx.current_state()
+                {
                     raf.each(move |_| {
                         let started_at = match gcx.timer_state {
                             TimerState::Started(ts) => ts,
@@ -57,7 +59,7 @@ pub fn timer_display() -> Html {
                     });
                 }
 
-                move || { drop(raf) }
+                move || drop(raf)
             },
             gcx_dep.timer_state.clone(),
         );
