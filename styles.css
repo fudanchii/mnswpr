@@ -9,10 +9,6 @@ input, button, div.nes-container {
   border-width: 4px !important;
 }
 
-table, td, th, tr, tbody {
-  border: none !important;
-}
-
 .container {
   width: 100%;
   height: calc(100% - 82px);
