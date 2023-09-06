@@ -15,7 +15,7 @@ web-sys = "0.3"
 js-sys = "0.3"
 rand = "0.8"
 getrandom = { version = "0.2", features = ["js"] }
-gloo-render = "0.1"
+lobars = { git = "https://github.com/fudanchii/lobars" }
 
 [workspace]
 members = ["src-tauri"]

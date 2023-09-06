@@ -1,6 +1,6 @@
-use std::{cell::RefCell, rc::Rc};
+use std::rc::Rc;
 
-use gloo_render::AnimationFrame;
+use lobars::use_request_animation_frame;
 use yew::prelude::*;
 use yewdux::prelude::*;
 
@@ -12,25 +12,11 @@ use crate::{
 
 pub const TIME_LIMIT: u64 = 60 * 3;
 
-fn raf_callback<P>(rafcell: Rc<RefCell<Option<AnimationFrame>>>, cb: P)
-where
-    P: Fn() -> bool + 'static,
-{
-    let rafcell_clone = rafcell.clone();
-    if !cb() {
-        *rafcell.borrow_mut() = None;
-        return;
-    }
-    *rafcell.borrow_mut() = Some(gloo_render::request_animation_frame(move |_| {
-        raf_callback(rafcell_clone, cb);
-    }));
-}
-
 #[function_component(TimerDisplay)]
 pub fn timer_display() -> Html {
     let (gcx, dispatch) = use_store::<GameCommandExecutor>();
     let clock = use_state(|| TIME_LIMIT);
-    let raf = use_mut_ref(|| None);
+    let raf = use_request_animation_frame();
     let display_clock = clock.clone();
 
     let display_class = match *clock {
@@ -42,33 +28,36 @@ pub fn timer_display() -> Html {
 
     {
         let gcx_dep = gcx.clone();
-        let raf_clone = raf.clone();
         use_effect_with_deps(
             move |_| {
-                if gcx.current_state() == &GameState::DrawBoard {
-                    if let TimerState::Started(started_at) = gcx.timer_state {
-                        raf_callback(raf_clone, move || {
-                            let delta = current_seconds().saturating_sub(started_at);
-                            let elapsed = TIME_LIMIT.saturating_sub(delta);
-                            if elapsed != *clock {
-                                clock.set(elapsed);
-                            }
-                            if elapsed == 0 {
-                                dispatch.apply(|cgcx: Rc<GameCommandExecutor>| {
-                                    let mut new_gcx = (*cgcx).clone();
-                                    new_gcx.timer_checkin(elapsed);
-                                    new_gcx.into()
-                                });
-                                return false;
-                            }
-                            true
-                        });
-                    }
+                if &GameState::Init != gcx.current_state() && &GameState::Reinit != gcx.current_state()  {
+                    raf.each(move |_| {
+                        let started_at = match gcx.timer_state {
+                            TimerState::Started(ts) => ts,
+                            _ => return false,
+                        };
+
+                        let delta = current_seconds().saturating_sub(started_at);
+
+                        let elapsed = TIME_LIMIT.saturating_sub(delta);
+                        if elapsed != *clock {
+                            clock.set(elapsed);
+                        }
+
+                        if elapsed == 0 {
+                            dispatch.apply(|cgcx: Rc<GameCommandExecutor>| {
+                                let mut new_gcx = (*cgcx).clone();
+                                new_gcx.timer_checkin(elapsed);
+                                new_gcx.into()
+                            });
+                            return false;
+                        }
+
+                        gcx.timer_state != TimerState::Reset
+                    });
                 }
 
-                move || {
-                    *raf.borrow_mut() = None;
-                }
+                move || { drop(raf) }
             },
             gcx_dep.timer_state.clone(),
         );
