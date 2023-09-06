@@ -1,6 +1,6 @@
 use std::rc::Rc;
 
-use serde_wasm_bindgen::to_value;
+use wasm_bindgen::JsValue;
 use yew::platform::spawn_local;
 use yewdux::prelude::*;
 
@@ -48,7 +48,7 @@ impl GameStore {
                     }
                 }
                 "quit" | "exit" => spawn_local(async {
-                    invoke("exit", to_value(&()).unwrap()).await;
+                    invoke("exit", JsValue::undefined()).await;
                 }),
                 _ => {
                     self.cmd_history.push(cmd.to_string());
