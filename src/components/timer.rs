@@ -1,6 +1,6 @@
 use std::rc::Rc;
 
-use lobars::use_request_animation_frame;
+use lobars::raf::{use_request_animation_frame, RAFNext};
 use yew::prelude::*;
 use yewdux::prelude::*;
 
@@ -36,7 +36,7 @@ pub fn timer_display() -> Html {
                     raf.each(move |_| {
                         let started_at = match gcx.timer_state {
                             TimerState::Started(ts) => ts,
-                            _ => return false,
+                            _ => return RAFNext::Abort,
                         };
 
                         let delta = current_seconds().saturating_sub(started_at);
@@ -52,10 +52,10 @@ pub fn timer_display() -> Html {
                                 new_gcx.timer_checkin(elapsed);
                                 new_gcx.into()
                             });
-                            return false;
+                            return RAFNext::Abort;
                         }
 
-                        gcx.timer_state != TimerState::Reset
+                        RAFNext::Continue
                     });
                 }
 
