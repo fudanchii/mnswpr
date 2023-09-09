@@ -10,7 +10,7 @@ use crate::{
     store::GameState,
 };
 
-pub const TIME_LIMIT: u64 = 60 * 3;
+pub const TIME_LIMIT: u64 = 60 * 5;
 
 #[function_component(TimerDisplay)]
 pub fn timer_display() -> Html {

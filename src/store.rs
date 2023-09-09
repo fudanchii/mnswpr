@@ -101,12 +101,12 @@ impl TryFrom<[char; 3]> for GameCommand {
     fn try_from(this: [char; 3]) -> Result<Self, Self::Error> {
         let [cmd, c1, c2] = this;
         let i = match c1 {
-            'a'..='z' => c1 as usize - 'a' as usize,
-            '1'..='9' => c1 as usize - '1' as usize,
+            'a'..='h' => c1 as usize - 'a' as usize,
+            '1'..='8' => c1 as usize - '1' as usize,
             _ => return Err(GameError::InvalidArgument),
         };
         let j = match c2 {
-            '1'..='9' => c2 as usize - '1' as usize,
+            '1'..='8' => c2 as usize - '1' as usize,
             _ => return Err(GameError::InvalidArgument),
         };
         match cmd {

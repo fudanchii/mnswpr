@@ -11,7 +11,7 @@ use crate::{
 #[function_component(CommandInputForm)]
 pub fn command_input_form() -> Html {
     let command_input_ref = use_node_ref();
-    let (hq, _) = use_store::<GameCommandExecutor>();
+    let hq = use_store_value::<GameCommandExecutor>();
     let (_, dispatch) = use_store::<GameStore>();
 
     {
@@ -40,7 +40,7 @@ pub fn command_input_form() -> Html {
     } else if *hq.current_state() == GameState::Lose {
         "GAME OVER"
     } else {
-        "insert command..."
+        "type command..."
     };
 
     html! {
