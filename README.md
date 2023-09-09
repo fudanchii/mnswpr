@@ -1,5 +1,5 @@
 # mnswpr
-Got 3 minutes? play mines sweeper.
+Got 5 minutes? play mines sweeper.
 
 # stacks
 mnswpr is written in Rust, developed with Yew, compiled into WASM, and playable in desktop with Tauri.
