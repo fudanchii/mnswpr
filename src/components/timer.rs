@@ -6,8 +6,7 @@ use yewdux::prelude::*;
 
 use crate::{
     current_seconds,
-    exec::{GameCommandExecutor, TimerState},
-    store::GameState,
+    exec::{GameCommandExecutor, GameState, TimerState},
 };
 
 pub const TIME_LIMIT: u64 = 60 * 5;
@@ -30,9 +29,7 @@ pub fn timer_display() -> Html {
         let gcx_dep = gcx.clone();
         use_effect_with_deps(
             move |_| {
-                if &GameState::Init != gcx.current_state()
-                    && &GameState::Reinit != gcx.current_state()
-                {
+                if &GameState::Init != gcx.current_state() {
                     raf.each(move |_| {
                         let started_at = match gcx.timer_state {
                             TimerState::Started(ts) => ts,

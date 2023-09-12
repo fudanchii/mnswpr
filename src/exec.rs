@@ -1,14 +1,78 @@
-use std::{collections::HashMap, rc::Rc};
-
 use rand::Rng;
+use wasm_bindgen::JsValue;
+use yew::platform::spawn_local;
 use yewdux::prelude::*;
 
 use crate::{
     current_seconds,
-    store::{GameCommand, GameState, GameStore},
+    errors::GameError, external_binding::invoke,
 };
 
 const THE_BOMB: i8 = 99;
+
+pub enum SystemCommand {
+    Start,
+    Restart,
+    Exit,
+}
+
+pub enum Command {
+    System(SystemCommand),
+    Game(GameCommand),
+}
+
+pub enum Transition {
+    Init(SystemCommand),
+    DrawBoard(Command),
+    Win(SystemCommand),
+    Lose(SystemCommand),
+}
+
+#[derive(Debug, Default, Clone, PartialEq, Eq, Hash)]
+pub enum GameState {
+    #[default]
+    Init,
+    DrawBoard,
+    Win,
+    Lose,
+}
+
+#[derive(Debug, Default, Clone, PartialEq, Eq, Hash)]
+pub enum GameCommand {
+    #[default]
+    None,
+    Step(usize, usize),
+    NeighboursStep(usize, usize),
+    Flag(usize, usize),
+    Unflag(usize, usize),
+    Toggle(usize, usize),
+}
+
+impl TryFrom<[char; 3]> for GameCommand {
+    type Error = GameError;
+
+    fn try_from(this: [char; 3]) -> Result<Self, Self::Error> {
+        let [cmd, c1, c2] = this;
+        let i = match c1 {
+            'a'..='h' => c1 as usize - 'a' as usize,
+            '1'..='8' => c1 as usize - '1' as usize,
+            _ => return Err(GameError::InvalidArgument),
+        };
+        let j = match c2 {
+            '1'..='8' => c2 as usize - '1' as usize,
+            _ => return Err(GameError::InvalidArgument),
+        };
+        match cmd {
+            's' => Ok(GameCommand::Step(j, i)),
+            'f' => Ok(GameCommand::Flag(j, i)),
+            'u' => Ok(GameCommand::Unflag(j, i)),
+            't' => Ok(GameCommand::Toggle(j, i)),
+            'n' => Ok(GameCommand::NeighboursStep(j, i)),
+            _ => Err(GameError::UnknownCommand),
+        }
+    }
+}
+
 
 #[derive(Debug, Default, Clone, PartialEq, Eq, Hash)]
 pub enum TileState {
@@ -34,44 +98,16 @@ pub struct GameCommandExecutor {
     pub board_map: Vec<Vec<TileState>>,
     pub timer_state: TimerState,
     state: GameState,
-    state_map: HashMap<GameState, Vec<GameState>>,
-}
-
-impl Listener for GameCommandExecutor {
-    type Store = GameStore;
-
-    fn on_change(&mut self, store: Rc<Self::Store>) {
-        Dispatch::<Self>::new().apply(|state: Rc<GameCommandExecutor>| -> Rc<_> {
-            let mut slf = (*state).clone();
-            match slf.state {
-                GameState::Init => (),
-                GameState::Reinit => {
-                    slf.init();
-                    slf.transition_into(GameState::DrawBoard);
-                }
-                GameState::DrawBoard => {
-                    slf.exec(store.cmd());
-                }
-                _ => {}
-            }
-            slf.into()
-        });
-    }
 }
 
 impl Store for GameCommandExecutor {
     fn new() -> Self {
-        let mut slf = Self {
+        Self {
             mines_map: Vec::new(),
             board_map: Vec::new(),
             state: GameState::Init,
-            state_map: Self::create_state_map(),
             timer_state: TimerState::Reset,
-        };
-
-        slf.init();
-
-        slf
+        }
     }
 
     fn should_notify(&self, old: &Self) -> bool {
@@ -88,7 +124,34 @@ impl GameCommandExecutor {
         self.generate_mines_map();
     }
 
-    fn exec(&mut self, cmd: &GameCommand) {
+    fn reinit(&mut self) {
+        self.init();
+        self.transition_into(GameState::DrawBoard);
+    }
+
+    fn exit() {
+        spawn_local(async { invoke("exit", JsValue::undefined()).await; });
+    }
+
+    pub fn exec(&mut self, cmd: &Transition) {
+        match cmd {
+            Transition::Init(SystemCommand::Start) => self.reinit(),
+            Transition::Init(SystemCommand::Exit) => Self::exit(),
+            Transition::Init(_) => {}
+            Transition::DrawBoard(Command::System(SystemCommand::Restart)) => self.reinit(),
+            Transition::DrawBoard(Command::System(SystemCommand::Exit)) => Self::exit(),
+            Transition::DrawBoard(Command::System(_)) => {}
+            Transition::DrawBoard(Command::Game(cmd)) => self.exec_game_command(cmd),
+            Transition::Lose(SystemCommand::Restart) => self.reinit(),
+            Transition::Lose(SystemCommand::Exit) => Self::exit(),
+            Transition::Lose(_) => {}
+            Transition::Win(SystemCommand::Restart) => self.reinit(),
+            Transition::Win(SystemCommand::Exit) => Self::exit(),
+            Transition::Win(_) => {}
+        }
+    }
+
+    pub fn exec_game_command(&mut self, cmd: &GameCommand) {
         match cmd {
             GameCommand::None => {}
             GameCommand::Step(x, y) => self.step(*x, *y),
@@ -99,22 +162,20 @@ impl GameCommandExecutor {
         }
     }
 
-    fn create_state_map() -> HashMap<GameState, Vec<GameState>> {
-        let mut states: HashMap<GameState, Vec<GameState>> = HashMap::new();
-        states.insert(GameState::Init, vec![GameState::Reinit]);
-        states.insert(
-            GameState::DrawBoard,
-            vec![
-                GameState::Reinit,
-                GameState::DrawBoard,
-                GameState::Win,
-                GameState::Lose,
-            ],
-        );
-        states.insert(GameState::Reinit, vec![GameState::DrawBoard]);
-        states.insert(GameState::Win, vec![GameState::Reinit]);
-        states.insert(GameState::Lose, vec![GameState::Reinit]);
-        states
+    pub fn parse_command(&self, cmd: &str) -> Result<Transition, GameError> {
+        let cmd = &cmd.to_lowercase();
+        match cmd.as_ref() {
+            "restart" | "reset" => self.transition(Command::System(SystemCommand::Restart)),
+            "start" => self.transition(Command::System(SystemCommand::Start)),
+            "quit" | "exit" => self.transition(Command::System(SystemCommand::Exit)),
+            v if v.len() == 3 => {
+                let mut chars: [char; 3] = [0 as char; 3];
+                let iter = cmd.chars().collect::<Vec<char>>();
+                chars[0] = iter[0]; chars[1] = iter[1]; chars[2] = iter[2];
+                self.transition(Command::Game(chars.try_into()?))
+            }
+            _ => Err(GameError::UnknownCommand),
+        }
     }
 
     pub fn timer_checkin(&mut self, current: u64) {
@@ -127,10 +188,29 @@ impl GameCommandExecutor {
         &self.state
     }
 
-    pub fn transition_into(&mut self, state: GameState) {
-        if self.state_map[&self.state].iter().any(|s| s == &state) {
-            self.state = state;
+    fn transition(&self, c: Command) -> Result<Transition, GameError> {
+        match self.current_state() {
+            GameState::Init => if let Command::System(csys) = c {
+                Ok(Transition::Init(csys))
+            } else {
+                Err(GameError::InvalidArgument)
+            }
+            GameState::DrawBoard => Ok(Transition::DrawBoard(c)),
+            GameState::Lose => if let Command::System(csys) = c {
+                Ok(Transition::Lose(csys))
+            } else {
+                Err(GameError::InvalidArgument)
+            }
+            GameState::Win => if let Command::System(csys) = c {
+                Ok(Transition::Win(csys))
+            } else {
+                Err(GameError::InvalidArgument)
+            }
         }
+    } 
+
+    fn transition_into(&mut self, state: GameState) {
+        self.state = state;
     }
 
     fn create_board_map(&mut self) {
@@ -247,6 +327,7 @@ impl GameCommandExecutor {
         }
         if self.considered_win() {
             self.state = GameState::Win;
+            self.timer_state = TimerState::Reset;
         }
     }
 

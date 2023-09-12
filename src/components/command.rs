@@ -4,15 +4,13 @@ use yewdux::prelude::*;
 
 use crate::{
     components::TimerDisplay,
-    exec::GameCommandExecutor,
-    store::{GameState, GameStore},
+    exec::{GameCommandExecutor, GameState},
 };
 
 #[function_component(CommandInputForm)]
 pub fn command_input_form() -> Html {
     let command_input_ref = use_node_ref();
-    let hq = use_store_value::<GameCommandExecutor>();
-    let (_, dispatch) = use_store::<GameStore>();
+    let (hq, dispatch) = use_store::<GameCommandExecutor>();
 
     {
         let command_input_ref = command_input_ref.clone();
@@ -25,22 +23,23 @@ pub fn command_input_form() -> Html {
         });
     }
 
-    let input_command = dispatch.reduce_mut_callback_with(|store, e: KeyboardEvent| {
+    let input_command = dispatch.reduce_callback_with(|store, e: KeyboardEvent| {
         if e.key() == "Enter" {
+            let mut gcx = (*store).clone();
             let command_input: HtmlInputElement = e.target_unchecked_into();
-            store
-                .parse_command(command_input.value().trim())
-                .unwrap_or_else(|err| store.errors.push(err));
+            gcx.parse_command(command_input.value().trim())
+                .map(|cmd| gcx.exec(&cmd))
+                .unwrap();
             command_input.set_value("");
+            return gcx.into();
         }
+        store
     });
 
-    let placeholder = if *hq.current_state() == GameState::Win {
-        "YOU WIN!"
-    } else if *hq.current_state() == GameState::Lose {
-        "GAME OVER"
-    } else {
-        "type command..."
+    let placeholder = match *hq.current_state() {
+        GameState::Win => "YOU WIN!",
+        GameState::Lose => "GAME OVER",
+        _ => "type command...",
     };
 
     html! {

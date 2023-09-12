@@ -4,8 +4,7 @@ use yewdux::prelude::*;
 
 use crate::{
     components::CommandInputForm,
-    exec::{GameCommandExecutor, TileState},
-    store::{GameState, GameStore},
+    exec::{GameCommandExecutor, GameState, TileState},
 };
 
 fn color(class: &str, text: &str) -> Html {
@@ -65,8 +64,7 @@ fn column_label() -> Html {
 
 #[function_component(Board)]
 fn draw_board() -> Html {
-    let (_, dispatch) = use_store::<GameStore>();
-    let (hq, _) = use_store::<GameCommandExecutor>();
+    let (hq, dispatch) = use_store::<GameCommandExecutor>();
     let mut btn_classes = vec!["nes-btn"];
     let callback = dispatch.reduce_mut_callback_with(|store, ev: MouseEvent| {
         let btn_nth = ev.button();
@@ -75,9 +73,9 @@ fn draw_board() -> Html {
         let x = button.get_attribute("data-x").unwrap();
         let y = button.get_attribute("data-y").unwrap();
 
-        store
-            .parse_command(&format!("{}{}{}", cmd, x, y))
-            .unwrap_or_else(|err| store.errors.push(err));
+        if let Ok(cmd) = store.parse_command(&format!("{}{}{}", cmd, x, y)) {
+            store.exec(&cmd);
+        }
 
         ev.prevent_default();
     });
