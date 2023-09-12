@@ -3,10 +3,7 @@ use wasm_bindgen::JsValue;
 use yew::platform::spawn_local;
 use yewdux::prelude::*;
 
-use crate::{
-    current_seconds,
-    errors::GameError, external_binding::invoke,
-};
+use crate::{current_seconds, errors::GameError, external_binding::invoke};
 
 const THE_BOMB: i8 = 99;
 
@@ -73,7 +70,6 @@ impl TryFrom<[char; 3]> for GameCommand {
     }
 }
 
-
 #[derive(Debug, Default, Clone, PartialEq, Eq, Hash)]
 pub enum TileState {
     #[default]
@@ -130,24 +126,29 @@ impl GameCommandExecutor {
     }
 
     fn exit() {
-        spawn_local(async { invoke("exit", JsValue::undefined()).await; });
+        spawn_local(async {
+            invoke("exit", JsValue::undefined()).await;
+        });
     }
 
     pub fn exec(&mut self, cmd: &Transition) {
         match cmd {
-            Transition::Init(SystemCommand::Start) => self.reinit(),
-            Transition::Init(SystemCommand::Exit) => Self::exit(),
-            Transition::Init(_) => {}
-            Transition::DrawBoard(Command::System(SystemCommand::Restart)) => self.reinit(),
-            Transition::DrawBoard(Command::System(SystemCommand::Exit)) => Self::exit(),
-            Transition::DrawBoard(Command::System(_)) => {}
+            Transition::Init(SystemCommand::Start)
+            | Transition::DrawBoard(Command::System(SystemCommand::Restart))
+            | Transition::Lose(SystemCommand::Restart)
+            | Transition::Win(SystemCommand::Restart) => self.reinit(),
+
+            Transition::Init(SystemCommand::Exit)
+            | Transition::DrawBoard(Command::System(SystemCommand::Exit))
+            | Transition::Lose(SystemCommand::Exit)
+            | Transition::Win(SystemCommand::Exit) => Self::exit(),
+
             Transition::DrawBoard(Command::Game(cmd)) => self.exec_game_command(cmd),
-            Transition::Lose(SystemCommand::Restart) => self.reinit(),
-            Transition::Lose(SystemCommand::Exit) => Self::exit(),
-            Transition::Lose(_) => {}
-            Transition::Win(SystemCommand::Restart) => self.reinit(),
-            Transition::Win(SystemCommand::Exit) => Self::exit(),
-            Transition::Win(_) => {}
+
+            Transition::Init(_)
+            | Transition::DrawBoard(Command::System(_))
+            | Transition::Lose(_)
+            | Transition::Win(_) => {}
         }
     }
 
@@ -171,7 +172,9 @@ impl GameCommandExecutor {
             v if v.len() == 3 => {
                 let mut chars: [char; 3] = [0 as char; 3];
                 let iter = cmd.chars().collect::<Vec<char>>();
-                chars[0] = iter[0]; chars[1] = iter[1]; chars[2] = iter[2];
+                chars[0] = iter[0];
+                chars[1] = iter[1];
+                chars[2] = iter[2];
                 self.transition(Command::Game(chars.try_into()?))
             }
             _ => Err(GameError::UnknownCommand),
@@ -190,24 +193,30 @@ impl GameCommandExecutor {
 
     fn transition(&self, c: Command) -> Result<Transition, GameError> {
         match self.current_state() {
-            GameState::Init => if let Command::System(csys) = c {
-                Ok(Transition::Init(csys))
-            } else {
-                Err(GameError::InvalidArgument)
+            GameState::Init => {
+                if let Command::System(csys) = c {
+                    Ok(Transition::Init(csys))
+                } else {
+                    Err(GameError::InvalidArgument)
+                }
             }
             GameState::DrawBoard => Ok(Transition::DrawBoard(c)),
-            GameState::Lose => if let Command::System(csys) = c {
-                Ok(Transition::Lose(csys))
-            } else {
-                Err(GameError::InvalidArgument)
+            GameState::Lose => {
+                if let Command::System(csys) = c {
+                    Ok(Transition::Lose(csys))
+                } else {
+                    Err(GameError::InvalidArgument)
+                }
             }
-            GameState::Win => if let Command::System(csys) = c {
-                Ok(Transition::Win(csys))
-            } else {
-                Err(GameError::InvalidArgument)
+            GameState::Win => {
+                if let Command::System(csys) = c {
+                    Ok(Transition::Win(csys))
+                } else {
+                    Err(GameError::InvalidArgument)
+                }
             }
         }
-    } 
+    }
 
     fn transition_into(&mut self, state: GameState) {
         self.state = state;
