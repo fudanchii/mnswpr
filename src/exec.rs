@@ -6,6 +6,7 @@ use yewdux::prelude::*;
 use crate::{current_seconds, errors::GameError, external_binding::invoke};
 
 const THE_BOMB: i8 = 99;
+pub const TIME_LIMIT: u64 = 60 * 5;
 
 pub enum SystemCommand {
     Start,
@@ -21,6 +22,7 @@ pub enum Command {
 pub enum Transition {
     Init(SystemCommand),
     DrawBoard(Command),
+    Paused(SystemCommand),
     Win(SystemCommand),
     Lose(SystemCommand),
 }
@@ -30,6 +32,7 @@ pub enum GameState {
     #[default]
     Init,
     DrawBoard,
+    Paused,
     Win,
     Lose,
 }
@@ -94,6 +97,7 @@ pub struct GameCommandExecutor {
     pub board_map: Vec<Vec<TileState>>,
     pub timer_state: TimerState,
     state: GameState,
+    pub time_left: u64,
 }
 
 impl Store for GameCommandExecutor {
@@ -103,6 +107,7 @@ impl Store for GameCommandExecutor {
             board_map: Vec::new(),
             state: GameState::Init,
             timer_state: TimerState::Reset,
+            time_left: TIME_LIMIT,
         }
     }
 
@@ -116,6 +121,7 @@ impl GameCommandExecutor {
         self.mines_map = Vec::new();
         self.board_map = Vec::new();
         self.timer_state = TimerState::Started(current_seconds());
+        self.time_left = TIME_LIMIT;
         self.create_board_map();
         self.generate_mines_map();
     }
@@ -131,16 +137,49 @@ impl GameCommandExecutor {
         });
     }
 
+    pub fn timer_pause_toggle(&mut self, clock: u64) {
+        match self.timer_state {
+            TimerState::Started(_) => {
+                self.time_left = clock;
+                self.transition_into(GameState::Paused);
+                self.timer_state = TimerState::Paused;
+            }
+            TimerState::Paused => {
+                self.transition_into(GameState::DrawBoard);
+                self.timer_state = TimerState::Started(current_seconds());
+            }
+            _ => {}
+        };
+    }
+
+    pub fn timer_display_class<'c>(
+        &self,
+        clock: &u64,
+        reset: &'c str,
+        warning: &'c str,
+        danger: &'c str,
+        default: &'c str,
+    ) -> &'c str {
+        match *clock {
+            _ if self.timer_state == TimerState::Reset => reset,
+            val if val <= (TIME_LIMIT / 4) => danger,
+            val if val <= (TIME_LIMIT / 2) => warning,
+            _ => default,
+        }
+    }
+
     pub fn exec(&mut self, cmd: &Transition) {
         match cmd {
             Transition::Init(SystemCommand::Start)
             | Transition::DrawBoard(Command::System(SystemCommand::Restart))
             | Transition::Lose(SystemCommand::Restart)
+            | Transition::Paused(SystemCommand::Restart)
             | Transition::Win(SystemCommand::Restart) => self.reinit(),
 
             Transition::Init(SystemCommand::Exit)
             | Transition::DrawBoard(Command::System(SystemCommand::Exit))
             | Transition::Lose(SystemCommand::Exit)
+            | Transition::Paused(SystemCommand::Exit)
             | Transition::Win(SystemCommand::Exit) => Self::exit(),
 
             Transition::DrawBoard(Command::Game(cmd)) => self.exec_game_command(cmd),
@@ -148,6 +187,7 @@ impl GameCommandExecutor {
             Transition::Init(_)
             | Transition::DrawBoard(Command::System(_))
             | Transition::Lose(_)
+            | Transition::Paused(_)
             | Transition::Win(_) => {}
         }
     }
@@ -201,6 +241,13 @@ impl GameCommandExecutor {
                 }
             }
             GameState::DrawBoard => Ok(Transition::DrawBoard(c)),
+            GameState::Paused => {
+                if let Command::System(csys) = c {
+                    Ok(Transition::Paused(csys))
+                } else {
+                    Err(GameError::InvalidArgument)
+                }
+            }
             GameState::Lose => {
                 if let Command::System(csys) = c {
                     Ok(Transition::Lose(csys))

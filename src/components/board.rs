@@ -80,7 +80,10 @@ fn draw_board() -> Html {
         ev.prevent_default();
     });
 
-    if *hq.current_state() == GameState::Lose || *hq.current_state() == GameState::Win {
+    if *hq.current_state() == GameState::Lose
+        || *hq.current_state() == GameState::Win
+        || *hq.current_state() == GameState::Paused
+    {
         btn_classes.push("is-disabled");
     }
 

@@ -6,10 +6,8 @@ use yewdux::prelude::*;
 
 use crate::{
     current_seconds,
-    exec::{GameCommandExecutor, GameState, TimerState},
+    exec::{GameCommandExecutor, GameState, TimerState, TIME_LIMIT},
 };
-
-pub const TIME_LIMIT: u64 = 60 * 5;
 
 #[function_component(TimerDisplay)]
 pub fn timer_display() -> Html {
@@ -18,11 +16,19 @@ pub fn timer_display() -> Html {
     let raf = use_request_animation_frame();
     let display_clock = clock.clone();
 
-    let display_class = match *clock {
-        _ if gcx.timer_state == TimerState::Reset => "is-disabled",
-        val if val <= (TIME_LIMIT / 4) => "is-error",
-        val if val <= (TIME_LIMIT / 2) => "is-warning",
-        _ => "is-primary",
+    let display_class = gcx.timer_display_class(
+        &clock,
+        "is-disabled",
+        "is-warning",
+        "is-danger",
+        "is-primary",
+    );
+
+    let pause_callback = {
+        let clock = clock.clone();
+        dispatch.reduce_mut_callback(move |store| {
+            store.timer_pause_toggle(*clock);
+        })
     };
 
     {
@@ -36,17 +42,17 @@ pub fn timer_display() -> Html {
                             _ => return RAFNext::Abort,
                         };
 
-                        let delta = current_seconds().saturating_sub(started_at);
+                        let elapsed = current_seconds().saturating_sub(started_at);
 
-                        let elapsed = TIME_LIMIT.saturating_sub(delta);
-                        if elapsed != *clock {
-                            clock.set(elapsed);
+                        let eta = gcx.time_left.saturating_sub(elapsed);
+                        if eta != *clock {
+                            clock.set(eta);
                         }
 
-                        if elapsed == 0 {
+                        if eta == 0 {
                             dispatch.apply(|cgcx: Rc<GameCommandExecutor>| {
                                 let mut new_gcx = (*cgcx).clone();
-                                new_gcx.timer_checkin(elapsed);
+                                new_gcx.timer_checkin(eta);
                                 new_gcx.into()
                             });
                             return RAFNext::Abort;
@@ -63,7 +69,7 @@ pub fn timer_display() -> Html {
     }
 
     html! {
-        <button type="button" class={classes!["nes-btn", display_class]}>
+        <button type="button" class={classes!["nes-btn", display_class]} onclick={pause_callback}>
             {m_ss(*display_clock)}
         </button>
     }
