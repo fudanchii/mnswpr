@@ -39,6 +39,7 @@ pub fn command_input_form() -> Html {
     let placeholder = match *hq.current_state() {
         GameState::Win => "YOU WIN!",
         GameState::Lose => "GAME OVER",
+        GameState::Paused => "zzZ...",
         _ => "type command...",
     };
 

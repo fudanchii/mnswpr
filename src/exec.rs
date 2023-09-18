@@ -162,6 +162,7 @@ impl GameCommandExecutor {
     ) -> &'c str {
         match *clock {
             _ if self.timer_state == TimerState::Reset => reset,
+            _ if self.timer_state == TimerState::Paused => "",
             val if val <= (TIME_LIMIT / 4) => danger,
             val if val <= (TIME_LIMIT / 2) => warning,
             _ => default,
