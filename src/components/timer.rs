@@ -33,7 +33,8 @@ pub fn timer_display() -> Html {
 
     {
         let gcx_dep = gcx.clone();
-        use_effect_with_deps(
+        use_effect_with(
+            gcx_dep.timer_state.clone(),
             move |_| {
                 if &GameState::Init != gcx.current_state() {
                     raf.each(move |_| {
@@ -64,7 +65,6 @@ pub fn timer_display() -> Html {
 
                 move || drop(raf)
             },
-            gcx_dep.timer_state.clone(),
         );
     }
 
