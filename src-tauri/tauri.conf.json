@@ -11,17 +11,10 @@
     "version": "0.0.1"
   },
   "tauri": {
-    "allowlist": {
-      "all": false,
-      "shell": {
-        "all": false,
-        "open": true
-      }
-    },
     "bundle": {
       "active": true,
       "targets": "all",
-      "identifier": "dev.fudanchii.mnswpr",
+      "identifier": "net.fudanchii.mnswpr",
       "icon": [
         "icons/mnswpr.32x32.png",
         "icons/mnswpr.128x128.png",
@@ -42,5 +35,10 @@
         "height": 600
       }
     ]
+  },
+  "plugins": {
+    "shell": {
+      "open": true
+    }
   }
 }

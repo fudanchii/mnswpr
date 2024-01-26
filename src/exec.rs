@@ -101,7 +101,7 @@ pub struct GameCommandExecutor {
 }
 
 impl Store for GameCommandExecutor {
-    fn new() -> Self {
+    fn new(_: &yewdux::Context) -> Self {
         Self {
             mines_map: Vec::new(),
             board_map: Vec::new(),
