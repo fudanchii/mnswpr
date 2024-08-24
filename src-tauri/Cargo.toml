@@ -14,11 +14,11 @@ name = "m_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
-tauri-build = { version = "2.0.0-alpha", features = [] }
+tauri-build = { version = "2.0.0-rc.0", features = [] }
 
 [dependencies]
-tauri = { version = "2.0.0-alpha", features = [] }
-tauri-plugin-shell = "2.0.0-alpha"
+tauri = { version = "2.0.0-rc.0", features = [] }
+tauri-plugin-shell = "2.0.0-rc.0"
 serde_json = "1.0"
 
 [features]

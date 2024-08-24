@@ -1,44 +1,42 @@
 {
-  "build": {
-    "beforeDevCommand": "trunk serve",
-    "beforeBuildCommand": "trunk build",
-    "devPath": "http://localhost:1420",
-    "distDir": "../dist",
-    "withGlobalTauri": true
-  },
-  "package": {
-    "productName": "mnswpr",
-    "version": "0.0.1"
-  },
-  "tauri": {
-    "bundle": {
-      "active": true,
-      "targets": "all",
-      "identifier": "net.fudanchii.mnswpr",
-      "icon": [
-        "icons/mnswpr.32x32.png",
-        "icons/mnswpr.128x128.png",
-        "icons/mnswpr.128x128@2x.png",
-        "icons/mnswpr.icns",
-        "icons/mnswpr.ico"
-      ]
-    },
+  "app": {
     "security": {
       "csp": null
     },
     "windows": [
       {
         "fullscreen": false,
+        "height": 600,
         "resizable": false,
         "title": "mnswpr",
-        "width": 800,
-        "height": 600
+        "width": 800
       }
-    ]
+    ],
+    "withGlobalTauri": true
   },
+  "build": {
+    "beforeBuildCommand": "trunk build",
+    "beforeDevCommand": "trunk serve",
+    "devUrl": "http://localhost:1420",
+    "frontendDist": "../dist"
+  },
+  "bundle": {
+    "active": true,
+    "icon": [
+      "icons/mnswpr.32x32.png",
+      "icons/mnswpr.128x128.png",
+      "icons/mnswpr.128x128@2x.png",
+      "icons/mnswpr.icns",
+      "icons/mnswpr.ico"
+    ],
+    "targets": "all"
+  },
+  "identifier": "net.fudanchii.mnswpr",
   "plugins": {
     "shell": {
       "open": true
     }
-  }
+  },
+  "productName": "mnswpr",
+  "version": "0.0.1"
 }

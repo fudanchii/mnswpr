@@ -33,39 +33,36 @@ pub fn timer_display() -> Html {
 
     {
         let gcx_dep = gcx.clone();
-        use_effect_with(
-            gcx_dep.timer_state.clone(),
-            move |_| {
-                if &GameState::Init != gcx.current_state() {
-                    raf.each(move |_| {
-                        let started_at = match gcx.timer_state {
-                            TimerState::Started(ts) => ts,
-                            _ => return RAFNext::Abort,
-                        };
+        use_effect_with(gcx_dep.timer_state.clone(), move |_| {
+            if &GameState::Init != gcx.current_state() {
+                raf.each(move |_| {
+                    let started_at = match gcx.timer_state {
+                        TimerState::Started(ts) => ts,
+                        _ => return RAFNext::Abort,
+                    };
 
-                        let elapsed = current_seconds().saturating_sub(started_at);
+                    let elapsed = current_seconds().saturating_sub(started_at);
 
-                        let eta = gcx.time_left.saturating_sub(elapsed);
-                        if eta != *clock {
-                            clock.set(eta);
-                        }
+                    let eta = gcx.time_left.saturating_sub(elapsed);
+                    if eta != *clock {
+                        clock.set(eta);
+                    }
 
-                        if eta == 0 {
-                            dispatch.apply(|cgcx: Rc<GameCommandExecutor>| {
-                                let mut new_gcx = (*cgcx).clone();
-                                new_gcx.timer_checkin(eta);
-                                new_gcx.into()
-                            });
-                            return RAFNext::Abort;
-                        }
+                    if eta == 0 {
+                        dispatch.apply(|cgcx: Rc<GameCommandExecutor>| {
+                            let mut new_gcx = (*cgcx).clone();
+                            new_gcx.timer_checkin(eta);
+                            new_gcx.into()
+                        });
+                        return RAFNext::Abort;
+                    }
 
-                        RAFNext::Continue
-                    });
-                }
+                    RAFNext::Continue
+                });
+            }
 
-                move || drop(raf)
-            },
-        );
+            move || drop(raf)
+        });
     }
 
     html! {
