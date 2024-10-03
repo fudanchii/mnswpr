@@ -14,7 +14,7 @@ pub fn timer_display() -> Html {
     let (gcx, dispatch) = use_store::<GameCommandExecutor>();
     let clock = use_state(|| TIME_LIMIT);
     let raf = use_request_animation_frame();
-    let display_clock = clock.clone();
+    let clock2display = clock.clone();
 
     let display_class = gcx.timer_display_class(
         &clock,
@@ -66,12 +66,8 @@ pub fn timer_display() -> Html {
     }
 
     html! {
-        <button type="button" class={classes!["nes-btn", display_class]} onclick={pause_callback}>
-            {m_ss(*display_clock)}
+        <button id="timer-button" type="button" class={classes!["nes-btn", display_class]} onclick={pause_callback}>
+            {format!("{}:{:02}", *clock2display/60, *clock2display%60)}
         </button>
     }
-}
-
-fn m_ss(time: u64) -> String {
-    format!("{}:{:02}", time / 60, time % 60)
 }

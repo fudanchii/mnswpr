@@ -3,7 +3,7 @@ use yew::prelude::*;
 use yewdux::prelude::*;
 
 use crate::{
-    components::TimerDisplay,
+    components::{GameStartResetButton, TimerDisplay},
     exec::{GameCommandExecutor, GameState},
 };
 
@@ -52,6 +52,7 @@ pub fn command_input_form() -> Html {
                     {placeholder}
                     onkeypress={input_command} />
                 <TimerDisplay />
+                <GameStartResetButton />
             </span>
         </div>
     }

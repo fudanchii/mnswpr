@@ -36,7 +36,11 @@ input, button, div.nes-container {
 
 #cmd-input {
   margin: 1rem 1rem 1rem 0rem;
-  width: 80vw;
+  width: 60vw;
+}
+
+#timer-button {
+    margin-right: 1rem;
 }
 
 .mines-field .mine-cell {
